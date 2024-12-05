@@ -164,6 +164,44 @@ async function run() {
         console.log("error");
       }
     });
+
+    // update a campaign
+    app.patch("/all-campaigns/:id", async (req, res) => {
+      const { id } = req.params;
+      const toUpdate = req.body;
+
+      const filter = {
+        _id: new ObjectId(id),
+      };
+
+      const updateDoc = {
+        $set: {
+          ...toUpdate,
+        },
+      };
+      try {
+        const result = await campaignsCollection.updateOne(filter, updateDoc);
+        console.log(result);
+        res.send(result);
+      } catch (e) {
+        console.log(e);
+      }
+    });
+
+    // get a single campaign for update
+    app.get("/udpate-campaign/:id", async (req, res) => {
+      const { id } = req.params;
+      const query = { _id: new ObjectId(id) };
+
+      try {
+        const result = await campaignsCollection.findOne(query);
+        res.send(result);
+      } catch (e) {
+        res
+          .status(500)
+          .send({ message: "Internal Server Error Or the capaign not found" });
+      }
+    });
   } catch (e) {
     console.log(e.code);
   }
