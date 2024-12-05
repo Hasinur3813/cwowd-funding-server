@@ -25,6 +25,7 @@ async function run() {
 
     const campaignsCollection = db.collection("campaigns");
     const usersCollection = db.collection("users");
+    const donatedCollection = db.collection("donated-collection");
 
     app.get("/", (req, res) => {
       res.send("This is crowd funding home page....");
@@ -71,6 +72,66 @@ async function run() {
         totalAmount: totalAmount,
       };
       res.json(resObj);
+    });
+
+    app.put("/donate", async (req, res) => {
+      const { mainCampaign, donatedCampaign } = req.body;
+
+      try {
+        const filter = { _id: new ObjectId(mainCampaign._id) };
+
+        const campaignFromDB = await campaignsCollection.findOne(filter);
+
+        const raised = parseInt(campaignFromDB.raised || 0);
+        const updateCampaign = {
+          $set: {
+            raised: raised + parseInt(donatedCampaign.raised),
+          },
+        };
+        await campaignsCollection.updateOne(filter, updateCampaign);
+
+        // checking if the campaign is already exist or not in the donatedCollection
+        // if exist then simply update it otherwise, add a new one
+
+        const donationFilter = {
+          campaignId: mainCampaign._id,
+          email: donatedCampaign.email,
+        };
+
+        const existingCampaign = await donatedCollection.findOne(
+          donationFilter
+        );
+
+        if (existingCampaign) {
+          const newDonatedAmount =
+            parseInt(existingCampaign.raised || 0) +
+            parseInt(donatedCampaign.raised);
+
+          const updateCampaign = {
+            $set: {
+              raised: newDonatedAmount,
+              lastDonated: new Date(),
+            },
+          };
+
+          const result = await donatedCollection.updateOne(
+            donationFilter,
+            updateCampaign
+          );
+          res.send(result);
+        } else {
+          const newDonation = {
+            ...donatedCampaign,
+            campaignId: mainCampaign._id,
+            lastDonated: new Date(),
+          };
+
+          const result = await donatedCollection.insertOne(newDonation);
+          res.send(result);
+        }
+      } catch (error) {
+        res.status(500).send({ message: "Internal server error" });
+      }
     });
   } catch (e) {
     console.log(e.code);
