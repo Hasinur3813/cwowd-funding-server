@@ -138,17 +138,30 @@ async function run() {
       const { email } = req.params;
 
       const query = {
-        email,
+        userEmail: email,
       };
 
       try {
-        const cursor = donatedCollection.find(query);
+        const cursor = campaignsCollection.find(query);
         const isExist = await cursor.toArray();
         isExist
           ? res.send(isExist)
           : res.status(404).json({ message: "No Campaign found" });
       } catch {
         res.status(500).send({ message: "Internal Server Error!" });
+      }
+    });
+
+    app.delete("/my-campaign/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const campaignC = await campaignsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        const donatedC = await donatedCollection.deleteOne({ campaignId: id });
+        donatedC.deletedCount ? res.send(donatedC) : res.send(campaignC);
+      } catch {
+        console.log("error");
       }
     });
   } catch (e) {
