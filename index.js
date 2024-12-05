@@ -133,6 +133,24 @@ async function run() {
         res.status(500).send({ message: "Internal server error" });
       }
     });
+
+    app.get("/my-campaign/:email", async (req, res) => {
+      const { email } = req.params;
+
+      const query = {
+        email,
+      };
+
+      try {
+        const cursor = donatedCollection.find(query);
+        const isExist = await cursor.toArray();
+        isExist
+          ? res.send(isExist)
+          : res.status(404).json({ message: "No Campaign found" });
+      } catch {
+        res.status(500).send({ message: "Internal Server Error!" });
+      }
+    });
   } catch (e) {
     console.log(e.code);
   }
