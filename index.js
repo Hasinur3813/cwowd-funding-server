@@ -38,7 +38,7 @@ async function run() {
     });
 
     app.get("/home-campaigns", async (req, res) => {
-      const cursor = campaignsCollection.find().limit(7);
+      const cursor = campaignsCollection.find().limit(6);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -201,6 +201,15 @@ async function run() {
           .status(500)
           .send({ message: "Internal Server Error Or the capaign not found" });
       }
+    });
+
+    // get my donations campaigns
+    app.get("/my-donations/:email", async (req, res) => {
+      const { email } = req.params;
+      const cursor = { email };
+      const fetchData = donatedCollection.find(cursor);
+      const campaigns = await fetchData.toArray();
+      res.json(campaigns);
     });
   } catch (e) {
     console.log(e.code);
