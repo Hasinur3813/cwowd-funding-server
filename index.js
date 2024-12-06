@@ -181,10 +181,9 @@ async function run() {
       };
       try {
         const result = await campaignsCollection.updateOne(filter, updateDoc);
-        console.log(result);
         res.send(result);
-      } catch (e) {
-        console.log(e);
+      } catch {
+        res.status(500).send({ message: "Internal server erro" });
       }
     });
 
@@ -210,6 +209,13 @@ async function run() {
       const fetchData = donatedCollection.find(cursor);
       const campaigns = await fetchData.toArray();
       res.json(campaigns);
+    });
+
+    // get campigns by sort
+    app.get("/sorted-campaings", async (req, res) => {
+      const cursor = campaignsCollection.find().sort({ minDonation: 1 });
+      const result = await cursor.toArray();
+      res.send(result);
     });
   } catch (e) {
     console.log(e.code);
