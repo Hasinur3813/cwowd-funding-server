@@ -21,7 +21,7 @@ const db = client.db("crowd-funding");
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const campaignsCollection = db.collection("campaigns");
     const usersCollection = db.collection("users");
@@ -37,11 +37,18 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/home-campaigns", async (req, res) => {
-      const cursor = campaignsCollection.find().limit(6);
-      const result = await cursor.toArray();
-      res.send(result);
+    app.get("/running-campaigns", async (req, res) => {
+      try {
+        const campaigns = await campaignsCollection
+          .find({ deadline: { $gt: new Date() } })
+          .toArray();
+
+        res.send(campaigns);
+      } catch (e) {
+        res.status(500).send("Internal server error");
+      }
     });
+
     app.post("/all-campaigns", async (req, res) => {
       const campaign = req.body;
       const result = await campaignsCollection.insertOne(campaign);
@@ -69,7 +76,7 @@ async function run() {
 
       const resObj = {
         projectName: "Crowd Funding",
-        totalAmount: totalAmount,
+        totalDonated: totalAmount,
       };
       res.json(resObj);
     });
