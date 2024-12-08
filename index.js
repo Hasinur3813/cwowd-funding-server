@@ -38,9 +38,11 @@ async function run() {
     });
 
     app.get("/running-campaigns", async (req, res) => {
+      const currentDate = new Date();
       try {
         const campaigns = await campaignsCollection
-          .find({ deadline: { $gt: new Date() } })
+          .find({ deadline: { $gt: currentDate } })
+          .limit(6)
           .toArray();
 
         res.send(campaigns);
@@ -51,7 +53,11 @@ async function run() {
 
     app.post("/all-campaigns", async (req, res) => {
       const campaign = req.body;
-      const result = await campaignsCollection.insertOne(campaign);
+      const modifiedCampaign = {
+        ...campaign,
+        deadline: new Date(campaign.deadline),
+      };
+      const result = await campaignsCollection.insertOne(modifiedCampaign);
       res.send(result);
     });
     app.get("/all-campaigns", async (req, res) => {
@@ -184,6 +190,7 @@ async function run() {
       const updateDoc = {
         $set: {
           ...toUpdate,
+          deadline: new Date(toUpdate.deadline),
         },
       };
       try {
@@ -224,8 +231,8 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-  } catch (e) {
-    console.log(e.code);
+  } catch {
+    res.status(500).send({ message: "Internal server error" });
   }
 }
 run();
