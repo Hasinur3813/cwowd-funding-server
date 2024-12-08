@@ -167,14 +167,32 @@ async function run() {
 
     app.delete("/my-campaign/:id", async (req, res) => {
       const { id } = req.params;
+      const campaignQuery = { _id: new ObjectId(id) };
+      const donationQuery = { campaignId: id };
+
       try {
-        const campaignC = await campaignsCollection.deleteOne({
-          _id: new ObjectId(id),
+        const campaignResult = await campaignsCollection.deleteOne(
+          campaignQuery
+        );
+
+        if (campaignResult.deletedCount === 0) {
+          return res.status(404).send({ message: "Campaign not found" });
+        }
+
+        const donationExist = await donatedCollection.findOne(donationQuery);
+
+        if (donationExist) {
+          await donatedCollection.deleteMany(donationQuery);
+        }
+
+        res.send({
+          message: "Campaign and associated deleted successfully!",
+          campaignDeleted: campaignResult,
+          donationDeleted: donationExist ? true : false,
         });
-        const donatedC = await donatedCollection.deleteOne({ campaignId: id });
-        donatedC.deletedCount ? res.send(donatedC) : res.send(campaignC);
-      } catch {
-        console.log("error");
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: "Internal server error", error });
       }
     });
 
