@@ -3,9 +3,18 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
+
 const port = process.env.PORT || 4000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@cluster0.0b1vd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -32,9 +41,62 @@ async function run() {
     });
     app.post("/users", async (req, res) => {
       const user = req.body;
-      const result = await usersCollection.insertOne(user);
-      console.log(result);
-      res.send(result);
+      const hashedPassword = await bcrypt.hash(user.password, 10);
+      console.log(hashedPassword);
+
+      const updatedUser = {
+        ...user,
+        password: hashedPassword,
+      };
+
+      try {
+        const result = await usersCollection.insertOne(updatedUser);
+        const token = jwt.sign(
+          { name: user.name, id: result.insertedId },
+          process.env.JWT_SECRET,
+          { expiresIn: "1d" }
+        );
+        res.cookie("token", token, { httpOnly: true });
+        res.status(201).send(result);
+      } catch {
+        res.send({
+          message: "Failed to register!",
+          success: false,
+        });
+      }
+    });
+
+    app.post("/users/login", async (req, res) => {
+      const { email, password } = req.body;
+      const user = await usersCollection.findOne({ email: email });
+
+      if (!user) {
+        return res.status(401).send({
+          success: false,
+          message: "User does not exist in our database!",
+        });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user?.password);
+
+      if (!isValidPassword) {
+        return res.status(401).send({
+          success: false,
+          message: "Invalid Credential!",
+        });
+      }
+
+      const token = jwt.sign(
+        { name: user.name, id: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: "5h" }
+      );
+
+      res.cookie("token", token, { expiresIn: "1d" });
+      res.status(201).send({
+        success: true,
+        message: "log in successfull",
+      });
     });
 
     app.get("/running-campaigns", async (req, res) => {
@@ -255,6 +317,13 @@ async function run() {
 }
 run();
 
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+
+  res.status(err.status || 500).send({
+    message: err.message || "There is a server-side error",
+  });
+});
 app.listen(port, () => {
   console.log("server is running");
 });
