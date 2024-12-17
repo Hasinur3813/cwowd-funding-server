@@ -50,14 +50,11 @@ async function run() {
       };
 
       try {
-        const result = await usersCollection.insertOne(updatedUser);
-        const token = jwt.sign(
-          { name: user.name, id: result.insertedId },
-          process.env.JWT_SECRET,
-          { expiresIn: "1d" }
-        );
-        res.cookie("token", token, { httpOnly: true });
-        res.status(201).send(result);
+        await usersCollection.insertOne(updatedUser);
+        res.status(201).send({
+          message: "Registered successful!",
+          success: true,
+        });
       } catch {
         res.send({
           message: "Failed to register!",
@@ -66,21 +63,52 @@ async function run() {
       }
     });
 
+    app.post("/jwt", (req, res) => {
+      const { displayName, email } = req.body;
+      const token = jwt.sign(
+        {
+          displayName,
+          email,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "5h" }
+      );
+
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+
+      res.status(201).send({
+        message: "User authenticated and cookie set!",
+      });
+    });
+
+    app.post("/clear-cookie", (req, res) => {
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: false,
+      });
+      res.send({ message: "cookie is cleared!" });
+    });
+
     app.post("/users/login", async (req, res) => {
       const { email, password } = req.body;
       const user = await usersCollection.findOne({ email: email });
 
       if (!user) {
-        return res.status(401).send({
+        res.send({
           success: false,
           message: "User does not exist in our database!",
         });
+        return;
       }
 
       const isValidPassword = await bcrypt.compare(password, user?.password);
 
       if (!isValidPassword) {
-        return res.status(401).send({
+        return res.send({
           success: false,
           message: "Invalid Credential!",
         });
@@ -92,7 +120,10 @@ async function run() {
         { expiresIn: "5h" }
       );
 
-      res.cookie("token", token, { expiresIn: "1d" });
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: false,
+      });
       res.status(201).send({
         success: true,
         message: "log in successfull",
