@@ -11,11 +11,16 @@ const port = process.env.PORT || 4000;
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://crowd-funding-pltatform.web.app",
+      "https://crowd-funding-pltatform.firebaseapp.com/",
+    ],
     credentials: true,
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@cluster0.0b1vd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -35,6 +40,26 @@ async function run() {
     const campaignsCollection = db.collection("campaigns");
     const usersCollection = db.collection("users");
     const donatedCollection = db.collection("donated-collection");
+
+    const verifyToken = (req, res, next) => {
+      const token = req.cookies?.token;
+      if (!token) {
+        return res.status(401).send({
+          success: false,
+          message: "Unauthorized user",
+        });
+      }
+
+      jwt.verify(token, process.env.JWT_SECRET, (err, decode) => {
+        if (err) {
+          return res.status(401).send({
+            success: false,
+            message: "Unauthorized user",
+          });
+        }
+        next();
+      });
+    };
 
     app.get("/", (req, res) => {
       res.send("This is crowd funding home page....");
@@ -158,7 +183,7 @@ async function run() {
       const campaigns = await cursor.toArray();
       res.send(campaigns);
     });
-    app.get("/all-campaigns/:id", async (req, res) => {
+    app.get("/all-campaigns/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const campaign = await campaignsCollection.findOne(query);
